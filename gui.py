@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 from anki.collection import AddNoteRequest
 from aqt import AnkiQt
@@ -70,4 +71,10 @@ class NewGraphDialog(QMainWindow):
         self.close()
 
     def pick_file(self) -> None:
-        pass
+        filename, _ = QFileDialog.getOpenFileName(
+            self, "Open file", os.environ["HOME"], "GULliVer notes (*.guv)"
+        )
+        print("got filename", filename)
+        if filename:
+            with open(filename, "r") as f:
+                self.editor.document().setPlainText(f.read())
