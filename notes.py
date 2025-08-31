@@ -2,7 +2,8 @@ import aqt
 from anki.collection import Collection
 from anki.notes import Note
 
-#from .gulliver import Edge
+from .models import graph_model
+from .gulliver import Edge
 
 def note_from_graph(
     nodes: list[str], edges: list["Edge"],
@@ -20,8 +21,13 @@ def note_from_graph(
         queue_index += 1
     print(selected)
 
-    if len(selected) <= 4:
-        note = Note(col, col.models.id_for_name(f"Directed Graph [4]"))
+    if len(selected) <= 8:
+        model_name = f"Directed Graph [{len(selected)}]"
+        model = col.models.id_for_name(model_name)
+        if model is None:
+            col.models.add_dict(graph_model(len(selected), col))
+            model = col.models.id_for_name(model_name)
+        note = Note(col, model)
         note["Context"] = edges[start][2]
         for field_index, graph_index in enumerate(selected):
             note[f"Node {field_index + 1}"] = nodes[graph_index]

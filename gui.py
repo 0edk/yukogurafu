@@ -40,24 +40,22 @@ class NewGraphDialog(QMainWindow):
 
     def accept(self) -> None:
         parser = SweetParser(self.editor.toPlainText())
-        parser.nodes[ROOT] = 0
-        parser.parse_sweet(ROOT, None)
+        parser.nodes.append(ROOT)
+        parser.parse_sweet(0, None)
         print(parser.nodes, parser.edges)
-        nodes: list[Optional[str]] = len(parser.nodes) * [None]
-        for label, index in parser.nodes.items():
-            nodes[index] = label
         added = []
         col = self.mw.col
         for index, edge in enumerate(parser.edges):
             if edge[0] == 0:
-                note = note_from_graph(nodes, parser.edges, index, col)
+                note = note_from_graph(parser.nodes, parser.edges, index, col)
                 if note:
                     added.append(note)
                 else:
-                    tooltip(f"Note on {nodes[edge[1]]} is too long")
+                    tooltip(f"Note on {parser.nodes[edge[1]]} is too long")
                     break
         else:
             default = col.decks.id_for_name("Default")
+            assert default is not None
             print("default is", default)
             for note in added:
                 col.add_note(note, default)
