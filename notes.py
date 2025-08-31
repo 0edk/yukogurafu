@@ -1,9 +1,15 @@
+import re
 import aqt
 from anki.collection import Collection
 from anki.notes import Note
 
 from .models import graph_model
 from .gulliver import Edge
+
+BACKTICKED: re.Pattern = re.compile("`([^`]+)`")
+
+def format_field(field: str) -> str:
+    return BACKTICKED.sub(r"<code>\1</code>", field)
 
 def note_from_graph(
     nodes: list[str], edges: list["Edge"],
@@ -28,13 +34,14 @@ def note_from_graph(
             col.models.add_dict(graph_model(len(selected), col))
             model = col.models.id_for_name(model_name)
         note = Note(col, model)
-        note["Context"] = edges[start][2]
+        note["Context"] = format_field(edges[start][2])
         for field_index, graph_index in enumerate(selected):
-            note[f"Node {field_index + 1}"] = nodes[graph_index]
+            note[f"Node {field_index + 1}"] = format_field(nodes[graph_index])
         for from_id, to_id, label, directed in edges:
             if from_id in selected and to_id in selected:
                 field_from = selected.index(from_id) + 1
                 field_to = selected.index(to_id) + 1
+                label = format_field(label)
                 note[f"Edge {field_from} {field_to}"] = label
                 if not directed:
                     note[f"Edge {field_to} {field_from}"] = label
