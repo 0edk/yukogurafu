@@ -26,7 +26,7 @@ def note_from_graph(
             col.models.add_dict(graph_model(n, col))
             model = col.models.id_for_name(model_name)
         note = Note(col, model)
-        note["Context"] = format_field(root[1])
+        note["Context"] = format_field(root[1] if len(root) == 2 else root[0])
         for field_index, node in enumerate(nodes):
             note[f"Node {field_index + 1}"] = format_field(node)
         for from_id, to_id, label, directed in edges:

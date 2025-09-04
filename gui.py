@@ -11,64 +11,20 @@ from .notes import note_from_graph
 
 Roles = QDialogButtonBox.ButtonRole
 
-ROOT = "ANKI_ROOT"
-
-class NewGraphDialog(QMainWindow):
-    def __init__(self, mw: AnkiQt) -> None:
-        super().__init__(mw)
-        self.mw = mw
-        self.setWindowTitle("Graph notes")
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Notes"))
-        self.editor = QPlainTextEdit()
-        layout.addWidget(self.editor)
-        box = QDialogButtonBox()
-        buttons = [
-            ("Load from file", Roles.ActionRole, self.pick_file),
-            ("Cancel", Roles.RejectRole, self.close),
-            ("Add", Roles.AcceptRole, self.accept),
-            ("Add (TGF)", Roles.AcceptRole, self.accept_tgf),
-        ]
-        for label, role, action in buttons:
-            button = box.addButton(label, role)
-            assert button is not None
-            qconnect(button.clicked, action)
-        layout.addWidget(box)
-        central = QWidget()
-        central.setLayout(layout)
-        self.setCentralWidget(central)
-        self.show()
-
-    def accept(self) -> None:
-        tooltip("Deprecated!")
-
-    def accept_tgf(self) -> None:
-        nodes, edges = load_tgf(self.editor.toPlainText(), True)
-        print(nodes, edges)
-        tooltip(f"TGF: Detected {len(nodes)}:{len(edges)}")
-        # TODO
-        self.close()
-
-    def pick_file(self) -> None:
-        filename, _ = QFileDialog.getOpenFileName(
-            self, "Open file", os.environ["HOME"], "GULliVer notes (*.guv)"
-        )
-        print("got filename", filename)
-        if filename:
-            FileLoadDialog(self.mw, filename)
-            return
-            with open(filename, "r") as f:
-                self.editor.document().setPlainText(f.read())
-
 class FileLoadDialog(QMainWindow):
-    def __init__(self, mw: AnkiQt, path: str) -> None:
+    def __init__(self, mw: AnkiQt, path: Optional[str] = None) -> None:
         super().__init__(mw)
         self.mw = mw
-        self.path = path
+        if path is None:
+            self.path, _ = QFileDialog.getOpenFileName(
+                self, "Open file", os.environ["HOME"], "GULliVer notes (*.guv)"
+            )
+        else:
+            self.path = path
         self.setWindowTitle("Graph notes from file")
         layout = QVBoxLayout()
         layout.addWidget(QLabel("Notes"))
-        with open(path, "r") as f:
+        with open(self.path, "r") as f:
             parser = SweetParser(f.read())
         self.forest = []
         self.checks = []
