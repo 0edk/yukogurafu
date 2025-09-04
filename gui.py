@@ -11,6 +11,10 @@ from .notes import note_from_graph
 
 Roles = QDialogButtonBox.ButtonRole
 
+def describe_path(path: str) -> str:
+    head, tail = os.path.split(path)
+    return os.path.join(os.path.basename(head), tail)
+
 class FileLoadDialog(QMainWindow):
     def __init__(self, mw: AnkiQt, path: Optional[str] = None) -> None:
         super().__init__(mw)
@@ -44,6 +48,10 @@ class FileLoadDialog(QMainWindow):
         for label, role, action in buttons:
             button = box.addButton(label, role)
             assert button is not None
+            if role == Roles.AcceptRole:
+                button.setAutoDefault(True)
+            else:
+                button.setAutoDefault(False)
             qconnect(button.clicked, action)
         layout.addWidget(box)
         central = QWidget()
@@ -57,6 +65,7 @@ class FileLoadDialog(QMainWindow):
         for entry, picked in zip(self.forest, self.checks):
             if picked.checkState() == Qt.CheckState.Checked:
                 note = note_from_graph(*entry, col)
+                note["Source"] = note["Source"] or describe_path(self.path)
                 if note:
                     added.append(note)
                 else:
@@ -69,3 +78,9 @@ class FileLoadDialog(QMainWindow):
                 col.add_note(note, default)
             tooltip(f"Added {len(added)} notes")
             self.close()
+
+    def keyPressEvent(self, evt: QKeyEvent) -> None:
+        if evt.key() == Qt.Key.Key_Escape:
+            self.close()
+        else:
+            super().keyPressEvent(evt)
