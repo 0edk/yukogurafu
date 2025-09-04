@@ -40,28 +40,7 @@ class NewGraphDialog(QMainWindow):
         self.show()
 
     def accept(self) -> None:
-        parser = SweetParser(self.editor.toPlainText())
-        parser.nodes.append(ROOT)
-        parser.parse_sweet(0, None)
-        print(parser.nodes, parser.edges)
-        added = []
-        col = self.mw.col
-        for index, edge in enumerate(parser.edges):
-            if edge[0] == 0:
-                note = note_from_graph(parser.nodes, parser.edges, index, col)
-                if note:
-                    added.append(note)
-                else:
-                    tooltip(f"Note on {parser.nodes[edge[1]]} is too long")
-                    break
-        else:
-            default = col.decks.id_for_name("Default")
-            assert default is not None
-            print("default is", default)
-            for note in added:
-                col.add_note(note, default)
-            tooltip(f"Added {len(added)} notes")
-            self.close()
+        tooltip("Deprecated!")
 
     def accept_tgf(self) -> None:
         nodes, edges = load_tgf(self.editor.toPlainText(), True)
@@ -76,5 +55,61 @@ class NewGraphDialog(QMainWindow):
         )
         print("got filename", filename)
         if filename:
+            FileLoadDialog(self.mw, filename)
+            return
             with open(filename, "r") as f:
                 self.editor.document().setPlainText(f.read())
+
+class FileLoadDialog(QMainWindow):
+    def __init__(self, mw: AnkiQt, path: str) -> None:
+        super().__init__(mw)
+        self.mw = mw
+        self.path = path
+        self.setWindowTitle("Graph notes from file")
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Notes"))
+        with open(path, "r") as f:
+            parser = SweetParser(f.read())
+        self.forest = []
+        self.checks = []
+        while (bush_root := parser.parse_single()):
+            print(parser.show_context())
+            self.forest.append((parser.nodes, parser.edges, *bush_root))
+            check = QCheckBox(parser.nodes[0], self)
+            self.checks.append(check)
+            layout.addWidget(check)
+            parser.nodes = []
+            parser.edges = []
+        box = QDialogButtonBox()
+        buttons = [
+            ("Cancel", Roles.RejectRole, self.close),
+            ("Add selected", Roles.AcceptRole, self.accept),
+        ]
+        for label, role, action in buttons:
+            button = box.addButton(label, role)
+            assert button is not None
+            qconnect(button.clicked, action)
+        layout.addWidget(box)
+        central = QWidget()
+        central.setLayout(layout)
+        self.setCentralWidget(central)
+        self.show()
+
+    def accept(self) -> None:
+        added = []
+        col = self.mw.col
+        for entry, picked in zip(self.forest, self.checks):
+            if picked.checkState() == Qt.CheckState.Checked:
+                note = note_from_graph(*entry, col)
+                if note:
+                    added.append(note)
+                else:
+                    tooltip(f"Note on {entry[0][0]} is too long")
+                    break
+        else:
+            default = col.decks.id_for_name("Default")
+            assert default is not None
+            for note in added:
+                col.add_note(note, default)
+            tooltip(f"Added {len(added)} notes")
+            self.close()
