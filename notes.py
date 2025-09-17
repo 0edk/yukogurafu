@@ -9,7 +9,7 @@ from .gulliver import Edge, EdgeAttr
 
 FORMAT_SYNTAX: list[tuple[re.Pattern, str]] = [(re.compile(s), d) for s, d in [
     ("`([^`]+)`", r"<code>\1</code>"),
-    (r"\$([^$]+)\$", r"<anki-mathjax>\1</anki-mathjax>"),
+    (r"\$([^$]+)\$", r"\(\1\)"),
     (r"\^\(([^)]+)\)", r"<sup>\1</sup>"),
     (r"_\(([^)]+)\)", r"<sub>\1</sub>"),
 ]]

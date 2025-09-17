@@ -30,16 +30,21 @@ class FileLoadDialog(QMainWindow):
         layout.addWidget(QLabel("Notes"))
         with open(self.path, "r") as f:
             parser = SweetParser(f.read())
+        check_container = QWidget()
+        check_layout = QVBoxLayout(check_container)
         self.forest = []
         self.checks = []
         while (bush_root := parser.parse_single()):
             print(parser.show_context())
             self.forest.append((parser.nodes, parser.edges, *bush_root))
-            check = QCheckBox(parser.nodes[0], self)
+            check = QCheckBox(parser.nodes[0], check_container)
             self.checks.append(check)
-            layout.addWidget(check)
+            check_layout.addWidget(check)
             parser.nodes = []
             parser.edges = []
+        scroll = QScrollArea()
+        scroll.setWidget(check_container)
+        layout.addWidget(scroll)
         box = QDialogButtonBox()
         buttons = [
             ("Cancel", Roles.RejectRole, self.close),
@@ -57,6 +62,8 @@ class FileLoadDialog(QMainWindow):
         central = QWidget()
         central.setLayout(layout)
         self.setCentralWidget(central)
+        vertical = scroll.verticalScrollBar()
+        vertical.setValue(vertical.maximum())
         self.show()
 
     def accept(self) -> None:
