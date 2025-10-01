@@ -28,8 +28,12 @@ class FileLoadDialog(QMainWindow):
         self.setWindowTitle("Graph notes from file")
         layout = QVBoxLayout()
         layout.addWidget(QLabel("Notes"))
-        with open(self.path, "r") as f:
-            parser = SweetParser(f.read())
+        if self.path:
+            with open(self.path, "r") as f:
+                parser = SweetParser(f.read())
+        else:
+            self.close()
+            return
         check_container = QWidget()
         check_layout = QVBoxLayout(check_container)
         self.forest = []
