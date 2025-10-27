@@ -1,9 +1,12 @@
+import math
 import os
+import re
 from typing import Optional
 from anki.collection import AddNoteRequest
-from aqt import AnkiQt
+from anki.notes import Note
+from aqt import AnkiQt, dialogs
 from aqt.qt import *
-from aqt.utils import qconnect, tooltip
+from aqt.utils import qconnect, showInfo, tooltip
 
 from .gulliver import SweetParser
 from .gulliver.assemble import load_tgf
@@ -67,7 +70,8 @@ class FileLoadDialog(QMainWindow):
         central.setLayout(layout)
         self.setCentralWidget(central)
         vertical = scroll.verticalScrollBar()
-        vertical.setValue(vertical.maximum())
+        if vertical:
+            vertical.setValue(vertical.maximum())
         self.show()
 
     def accept(self) -> None:
@@ -90,143 +94,103 @@ class FileLoadDialog(QMainWindow):
             tooltip(f"Added {len(added)} notes")
             self.close()
 
-    def keyPressEvent(self, evt: QKeyEvent) -> None:
-        if evt.key() == Qt.Key.Key_Escape:
+    def keyPressEvent(self, evt: QKeyEvent | None) -> None:
+        if evt and evt.key() == Qt.Key.Key_Escape:
             self.close()
         else:
             super().keyPressEvent(evt)
 
-from aqt import mw, dialogs
-from aqt.qt import *
-from aqt.utils import showInfo
-import math
-import re
-
-class CircularFieldDialog(QDialog):
-    def __init__(self, note):
+class GraphViewDialog(QDialog):
+    def __init__(self, mw: AnkiQt, note: Note):
         super().__init__(mw)
+        self.mw = mw
         self.note = note
-        self.setWindowTitle("Circular Field View")
-        self.resize(800, 900)
-
+        self.setWindowTitle("Graph view")
         self.canvas = QWidget(self)
+        self.canvas.paintEvent = self.paintEvent
         layout = QVBoxLayout(self)
         layout.addWidget(self.canvas)
 
-        self.canvas.paintEvent = self.paintEvent
-
-    def paintEvent(self, event):
+    def paintEvent(self, a0: QPaintEvent | None) -> None:
         painter = QPainter(self.canvas)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        width = self.canvas.width()
-        height = self.canvas.height()
-        center_x = width / 2
-        center_y = height / 2 + 100
-        radius = min(width, height) / 3
+        width: int = self.canvas.width()
+        height: int = self.canvas.height()
+        center_x: int = width // 2
+        center_y: int = height // 2 + 100
+        radius: int = min(width, height) // 3
 
-        # Draw Source and Context at top
-        y_offset = 20
+        painter.setPen(Qt.GlobalColor.white)
+        y_offset: int = 20
         for field_name in ["Source", "Context"]:
             if field_name in self.note:
-                painter.setPen(Qt.GlobalColor.black)
-                painter.drawText(20, int(y_offset), f"{field_name}:")
-
+                painter.drawText(20, y_offset, f"{field_name}:")
                 text_doc = QTextDocument()
-                html = self.fix_media_paths(self.note[field_name])
-                text_doc.setHtml(html)
+                text_doc.setHtml(self.fix_media_paths(self.note[field_name]))
                 text_doc.setTextWidth(width - 40)
-
                 painter.save()
-                painter.translate(20, y_offset + 20)
+                painter.translate(70, y_offset)
                 text_doc.drawContents(painter)
                 painter.restore()
+                y_offset += int(text_doc.size().height() + 40)
 
-                y_offset += text_doc.size().height() + 40
-
-        # Get node fields
-        node_fields = []
+        node_fields: dict[int, str] = {}
         for fname in self.note.keys():
             match = re.match(r"Node (\d+)", fname)
             if match:
-                node_num = int(match.group(1))
-                node_fields.append((node_num, fname, self.note[fname]))
-        node_fields.sort()
-
-        count = len(node_fields)
-        if count == 0:
-            painter.drawText(int(center_x - 50), int(center_y), "No Node fields found")
+                node_fields[int(match.group(1))] = self.note[fname]
+        if not node_fields:
+            painter.drawText(
+                int(center_x - 50), int(center_y),
+                "No Node fields found"
+            )
             return
 
-        # Calculate positions
-        positions = {}
-        for idx, (node_num, field_name, content) in enumerate(node_fields):
-            angle = (2 * math.pi * idx / count) - (math.pi / 2)
-            x = center_x + radius * math.cos(angle)
-            y = center_y + radius * math.sin(angle)
-            positions[node_num] = (x, y)
+        positions: dict[int, tuple[float, float]] = {}
+        count: int = len(node_fields)
+        for index in node_fields:
+            angle: float = math.tau * index / count
+            positions[index] = (
+                center_x + radius * math.cos(angle),
+                center_y + radius * math.sin(angle)
+            )
 
-        # Draw edges
         painter.setPen(QPen(QColor(0, 255, 0), 3))
         for i in positions:
             for j in positions:
                 if i != j:
-                    edge_field = f"Edge {i} {j}"
-                    if edge_field in self.note and self.note[edge_field].strip():
+                    field = f"Edge {i} {j}"
+                    if field in self.note and self.note[field].strip():
                         self.draw_arrow(painter, positions[i], positions[j])
 
-        # Draw nodes
-        for idx, (node_num, field_name, content) in enumerate(node_fields):
-            x, y = positions[node_num]
-
+        for index, content in node_fields.items():
+            x, y = positions[index]
             text_doc = QTextDocument()
-            html = self.fix_media_paths(content)
-            text_doc.setHtml(html)
+            text_doc.setHtml(self.fix_media_paths(content))
             text_doc.setTextWidth(300)
-
             painter.save()
             painter.translate(x - 150, y - 100)
             text_doc.drawContents(painter)
             painter.restore()
 
     def fix_media_paths(self, html):
-        media_dir = mw.col.media.dir()
-        html = re.sub(r'src="([^"]+)"', f'src="file:///{media_dir}/\\1"', html)
-        return html
+        return re.sub(
+            r'src="([^"]+)"',
+            f'src="file:///{self.mw.col.media.dir()}/\\1"',
+            html
+        )
 
     def draw_arrow(self, painter, start, end):
         x1, y1 = start
         x2, y2 = end
-
-        # Draw line
         painter.drawLine(int(x1), int(y1), int(x2), int(y2))
-
-        # Draw arrowhead
         angle = math.atan2(y2 - y1, x2 - x1)
         arrow_size = 15
-
         p1 = QPointF(x2 - arrow_size * math.cos(angle - math.pi / 6),
                      y2 - arrow_size * math.sin(angle - math.pi / 6))
         p2 = QPointF(x2 - arrow_size * math.cos(angle + math.pi / 6),
                      y2 - arrow_size * math.sin(angle + math.pi / 6))
         p3 = QPointF(x2, y2)
-
         painter.setBrush(QColor(0, 255, 0))
         painter.drawPolygon(QPolygonF([p1, p2, p3]))
-
-def on_browse_selected():
-    browser = dialogs._dialogs.get("Browser", [None, None])[1]
-    if not browser:
-        showInfo("Open browser first")
-        return
-    nids = browser.selectedNotes()
-    if not nids:
-        showInfo("Select a note")
-        return
-    note = mw.col.get_note(nids[0])
-    dialog = CircularFieldDialog(note)
-    dialog.show()
-
-action = QAction("Show Circular Fields", mw)
-action.triggered.connect(on_browse_selected)
-mw.form.menuTools.addAction(action)
