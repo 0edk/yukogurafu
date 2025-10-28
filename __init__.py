@@ -17,7 +17,8 @@ def on_browse_selected() -> None:
         return
     note: Note = aqt.mw.col.get_note(nids[0])
     dialog = GraphViewDialog(aqt.mw, note)
-    dialog.show()
+    dialog.setWindowState(Qt.WindowState.WindowMaximized)
+    dialog.showMaximized()
 
 show_graph = QAction("Show graph note", aqt.mw)
 show_graph.triggered.connect(on_browse_selected)

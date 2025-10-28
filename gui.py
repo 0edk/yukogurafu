@@ -13,10 +13,17 @@ from .gulliver.assemble import load_tgf
 from .notes import note_from_graph
 
 Roles = QDialogButtonBox.ButtonRole
+Point = tuple[float, float]
 
 def describe_path(path: str) -> str:
     head, tail = os.path.split(path)
     return os.path.join(os.path.basename(head), tail)
+
+def march(start: Point, end: Point, step: float) -> Point:
+    x1, y1 = start
+    x2, y2 = end
+    dist = math.dist(start, end)
+    return (x1 + step * (x2 - x1) / dist, y1 + step * (y2 - y1) / dist)
 
 class FileLoadDialog(QMainWindow):
     def __init__(self, mw: AnkiQt, path: Optional[str] = None) -> None:
@@ -100,7 +107,7 @@ class FileLoadDialog(QMainWindow):
         else:
             super().keyPressEvent(evt)
 
-class GraphViewDialog(QDialog):
+class GraphViewDialog(QMainWindow):
     def __init__(self, mw: AnkiQt, note: Note):
         super().__init__(mw)
         self.mw = mw
@@ -108,8 +115,17 @@ class GraphViewDialog(QDialog):
         self.setWindowTitle("Graph view")
         self.canvas = QWidget(self)
         self.canvas.paintEvent = self.paintEvent
-        layout = QVBoxLayout(self)
+        layout = QVBoxLayout()
         layout.addWidget(self.canvas)
+        central = QWidget()
+        central.setLayout(layout)
+        self.setCentralWidget(central)
+
+    def keyPressEvent(self, evt: QKeyEvent | None) -> None:
+        if evt and evt.key() == Qt.Key.Key_Escape:
+            self.close()
+        else:
+            super().keyPressEvent(evt)
 
     def paintEvent(self, a0: QPaintEvent | None) -> None:
         painter = QPainter(self.canvas)
@@ -118,22 +134,19 @@ class GraphViewDialog(QDialog):
         width: int = self.canvas.width()
         height: int = self.canvas.height()
         center_x: int = width // 2
-        center_y: int = height // 2 + 100
-        radius: int = min(width, height) // 3
+        center_y: int = height // 2 + 30
+        radius: int = min(width, height) * 2 // 5
+        if radius < 20:
+            return
 
         painter.setPen(Qt.GlobalColor.white)
-        y_offset: int = 20
+        y_offset: int = 10
         for field_name in ["Source", "Context"]:
             if field_name in self.note:
-                painter.drawText(20, y_offset, f"{field_name}:")
-                text_doc = QTextDocument()
-                text_doc.setHtml(self.fix_media_paths(self.note[field_name]))
-                text_doc.setTextWidth(width - 40)
-                painter.save()
-                painter.translate(70, y_offset)
-                text_doc.drawContents(painter)
-                painter.restore()
-                y_offset += int(text_doc.size().height() + 40)
+                y_offset += int(self.show_field(
+                    painter, f"{field_name}: {self.note[field_name]}",
+                    20, y_offset, width - 20
+                ).size().height())
 
         node_fields: dict[int, str] = {}
         for fname in self.note.keys():
@@ -147,7 +160,7 @@ class GraphViewDialog(QDialog):
             )
             return
 
-        positions: dict[int, tuple[float, float]] = {}
+        positions: dict[int, Point] = {}
         count: int = len(node_fields)
         for index in node_fields:
             angle: float = math.tau * index / count
@@ -162,17 +175,18 @@ class GraphViewDialog(QDialog):
                 if i != j:
                     field = f"Edge {i} {j}"
                     if field in self.note and self.note[field].strip():
-                        self.draw_arrow(painter, positions[i], positions[j])
+                        self.draw_arrow(
+                            painter,
+                            march(positions[i], positions[j], 40),
+                            march(positions[j], positions[i], 40)
+                        )
+                        ex, ey = march(positions[j], positions[i], 90)
+                        ex -= 30
+                        self.show_field(painter, self.note[field], ex, ey, 80)
 
         for index, content in node_fields.items():
             x, y = positions[index]
-            text_doc = QTextDocument()
-            text_doc.setHtml(self.fix_media_paths(content))
-            text_doc.setTextWidth(300)
-            painter.save()
-            painter.translate(x - 150, y - 100)
-            text_doc.drawContents(painter)
-            painter.restore()
+            self.show_field(painter, content, x - 60, y - 20, 120)
 
     def fix_media_paths(self, html):
         return re.sub(
@@ -180,6 +194,23 @@ class GraphViewDialog(QDialog):
             f'src="file:///{self.mw.col.media.dir()}/\\1"',
             html
         )
+
+    def show_field(self, painter: QPainter, content: str,
+        x: float, y: float, width: float) -> QTextDocument:
+        text_doc = QTextDocument()
+        font = QFont()
+        font.setPointSize(16)
+        text_doc.setDefaultFont(font)
+        text_doc.setHtml(self.fix_media_paths(content))
+        text_doc.setTextWidth(width)
+        options = QTextOption()
+        options.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        text_doc.setDefaultTextOption(options)
+        painter.save()
+        painter.translate(x, y)
+        text_doc.drawContents(painter)
+        painter.restore()
+        return text_doc
 
     def draw_arrow(self, painter, start, end):
         x1, y1 = start
