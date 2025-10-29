@@ -113,13 +113,24 @@ class GraphViewDialog(QMainWindow):
         self.mw = mw
         self.note = note
         self.setWindowTitle("Graph view")
+
+        layout = QVBoxLayout()
+        self.editor = QTextEdit(self)
+        layout.addWidget(self.editor, 0)
         self.canvas = QWidget(self)
         self.canvas.paintEvent = self.paintEvent
-        layout = QVBoxLayout()
-        layout.addWidget(self.canvas)
+        layout.addWidget(self.canvas, 1)
         central = QWidget()
         central.setLayout(layout)
         self.setCentralWidget(central)
+
+        self.center: tuple[int, int] = (0, 0)
+        self.node_fields: dict[int, str] = {}
+        for fname in self.note.keys():
+            match = re.match(r"Node (\d+)", fname)
+            if match:
+                self.node_fields[int(match.group(1))] = self.note[fname]
+        self.press_node: Optional[int] = None
 
     def keyPressEvent(self, evt: QKeyEvent | None) -> None:
         if evt and evt.key() == Qt.Key.Key_Escape:
@@ -133,8 +144,7 @@ class GraphViewDialog(QMainWindow):
 
         width: int = self.canvas.width()
         height: int = self.canvas.height()
-        center_x: int = width // 2
-        center_y: int = height // 2 + 30
+        self.center = (width // 2, height // 2 + 30)
         radius: int = min(width, height) * 2 // 5
         if radius < 20:
             return
@@ -148,25 +158,20 @@ class GraphViewDialog(QMainWindow):
                     20, y_offset, width - 20
                 ).size().height())
 
-        node_fields: dict[int, str] = {}
-        for fname in self.note.keys():
-            match = re.match(r"Node (\d+)", fname)
-            if match:
-                node_fields[int(match.group(1))] = self.note[fname]
-        if not node_fields:
+        if not self.node_fields:
             painter.drawText(
-                int(center_x - 50), int(center_y),
+                self.center[0] - 50, self.center[1],
                 "No Node fields found"
             )
             return
 
         positions: dict[int, Point] = {}
-        count: int = len(node_fields)
-        for index in node_fields:
+        count: int = len(self.node_fields)
+        for index in self.node_fields:
             angle: float = math.tau * index / count
             positions[index] = (
-                center_x + radius * math.cos(angle),
-                center_y + radius * math.sin(angle)
+                self.center[0] + radius * math.cos(angle),
+                self.center[1] + radius * math.sin(angle)
             )
 
         painter.setPen(QPen(QColor(0, 255, 0), 3))
@@ -184,7 +189,7 @@ class GraphViewDialog(QMainWindow):
                         ex -= 30
                         self.show_field(painter, self.note[field], ex, ey, 80)
 
-        for index, content in node_fields.items():
+        for index, content in self.node_fields.items():
             x, y = positions[index]
             self.show_field(painter, content, x - 60, y - 20, 120)
 
@@ -225,3 +230,46 @@ class GraphViewDialog(QMainWindow):
         p3 = QPointF(x2, y2)
         painter.setBrush(QColor(0, 255, 0))
         painter.drawPolygon(QPolygonF([p1, p2, p3]))
+
+    def mousePressEvent(self, event: QMouseEvent | None):
+        if event:
+            self.press_node = self.get_node_at_pos(event.pos())
+
+    def mouseReleaseEvent(self, event: QMouseEvent | None):
+        if event:
+            release_node = self.get_node_at_pos(event.pos())
+            if self.press_node is not None and release_node is not None:
+                if self.press_node == release_node:
+                    self.fill_editor(self.node_fields[self.press_node])
+                else:
+                    edge = f"Edge {self.press_node} {release_node}"
+                    if edge in self.note:
+                        self.fill_editor(self.note[edge])
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent | None):
+        if event and self.get_node_at_pos(event.pos()) is None:
+            self.fill_editor("new node ...")
+
+    def get_node_at_pos(self, pos: QPoint) -> int | None:
+        angle = math.atan2(
+            pos.y() - self.center[1] - self.editor.height(),
+            pos.x() - self.center[1]
+        )
+        if angle < 0:
+            angle += math.tau
+        n = len(self.node_fields)
+        epsilon = math.tau / (3 * n)
+        for i in range(1, n + 1):
+            node_angle = (i % n) * math.tau / n
+            if abs(angle - node_angle) < epsilon:
+                return i
+        return None
+
+    def fill_editor(self, text: str):
+        doc = self.editor.document()
+        if doc:
+            doc.setHtml(text)
+        else:
+            doc = QTextDocument()
+            doc.setHtml(text)
+            self.editor.setDocument(doc)
