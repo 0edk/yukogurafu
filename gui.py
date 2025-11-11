@@ -116,10 +116,28 @@ class GraphViewDialog(QMainWindow):
 
         layout = QVBoxLayout()
         self.editor = QTextEdit(self)
+        self.editor.textChanged.connect(self.update_text)
         layout.addWidget(self.editor, 0)
         self.canvas = QWidget(self)
         self.canvas.paintEvent = self.paintEvent
+        self.canvas.mousePressEvent = self.canvas_press
+        self.canvas.mouseReleaseEvent = self.canvas_release
+        self.canvas.mouseDoubleClickEvent = self.canvas_double_click
         layout.addWidget(self.canvas, 1)
+        box = QDialogButtonBox()
+        buttons = [
+            ("Cancel", Roles.RejectRole, self.close),
+            ("Save changes", Roles.AcceptRole, self.accept),
+        ]
+        for label, role, action in buttons:
+            button = box.addButton(label, role)
+            assert button is not None
+            if role == Roles.AcceptRole:
+                button.setAutoDefault(True)
+            else:
+                button.setAutoDefault(False)
+            qconnect(button.clicked, action)
+        layout.addWidget(box)
         central = QWidget()
         central.setLayout(layout)
         self.setCentralWidget(central)
@@ -131,6 +149,7 @@ class GraphViewDialog(QMainWindow):
             if match:
                 self.node_fields[int(match.group(1))] = self.note[fname]
         self.press_node: Optional[int] = None
+        self.edited_field: Optional[str] = None
 
     def keyPressEvent(self, evt: QKeyEvent | None) -> None:
         if evt and evt.key() == Qt.Key.Key_Escape:
@@ -231,29 +250,34 @@ class GraphViewDialog(QMainWindow):
         painter.setBrush(QColor(0, 255, 0))
         painter.drawPolygon(QPolygonF([p1, p2, p3]))
 
-    def mousePressEvent(self, event: QMouseEvent | None):
+    def canvas_press(self, event: QMouseEvent | None) -> None:
         if event:
             self.press_node = self.get_node_at_pos(event.pos())
 
-    def mouseReleaseEvent(self, event: QMouseEvent | None):
+    def canvas_release(self, event: QMouseEvent | None) -> None:
         if event:
             release_node = self.get_node_at_pos(event.pos())
             if self.press_node is not None and release_node is not None:
                 if self.press_node == release_node:
                     self.fill_editor(self.node_fields[self.press_node])
+                    self.edited_field = f"Node {self.press_node}"
                 else:
                     edge = f"Edge {self.press_node} {release_node}"
                     if edge in self.note:
                         self.fill_editor(self.note[edge])
+                        self.edited_field = edge
 
-    def mouseDoubleClickEvent(self, event: QMouseEvent | None):
+    def canvas_double_click(self, event: QMouseEvent | None) -> None:
         if event and self.get_node_at_pos(event.pos()) is None:
             self.fill_editor("new node ...")
+            new_index: int = len(self.node_fields) + 1
+            self.node_fields[new_index] = "new node ..."
+            self.edited_field = f"Node {new_index}"
 
     def get_node_at_pos(self, pos: QPoint) -> int | None:
         angle = math.atan2(
-            pos.y() - self.center[1] - self.editor.height(),
-            pos.x() - self.center[1]
+            pos.y() - self.center[1],
+            pos.x() - self.center[0]
         )
         if angle < 0:
             angle += math.tau
@@ -266,6 +290,7 @@ class GraphViewDialog(QMainWindow):
         return None
 
     def fill_editor(self, text: str):
+        old_field, self.edited_field = self.edited_field, None
         doc = self.editor.document()
         if doc:
             doc.setHtml(text)
@@ -273,3 +298,17 @@ class GraphViewDialog(QMainWindow):
             doc = QTextDocument()
             doc.setHtml(text)
             self.editor.setDocument(doc)
+        self.edited_field = old_field
+
+    def update_text(self) -> None:
+        if self.edited_field is not None:
+            new_text = self.editor.toHtml()
+            self.note[self.edited_field] = new_text
+            match = re.match(r"Node (\d+)", self.edited_field)
+            if match:
+                self.node_fields[int(match.group(1))] = new_text
+            self.canvas.update()
+
+    def accept(self) -> None:
+        self.note.flush()
+        self.close()
