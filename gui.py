@@ -302,7 +302,11 @@ class GraphViewDialog(QMainWindow):
 
     def update_text(self) -> None:
         if self.edited_field is not None:
-            new_text = self.editor.toHtml()
+            new_text = re.sub(
+                "(<meta [^>]+>)|(<style.*?</style>)|(<p[^>]*>)|(</p>)",
+                "", self.editor.toHtml(), flags=re.DOTALL
+            )
+            new_text = re.sub("^\n+", "", new_text, flags=re.MULTILINE)
             self.note[self.edited_field] = new_text
             match = re.match(r"Node (\d+)", self.edited_field)
             if match:
