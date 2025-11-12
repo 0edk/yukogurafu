@@ -2,7 +2,6 @@ import math
 import os
 import re
 from typing import Optional
-from anki.collection import AddNoteRequest
 from anki.notes import Note
 from aqt import AnkiQt, dialogs
 from aqt.qt import *
@@ -118,6 +117,18 @@ class GraphViewDialog(QMainWindow):
         self.editor = QTextEdit(self)
         self.editor.textChanged.connect(self.update_text)
         layout.addWidget(self.editor, 0)
+        self.field_editors: dict[str, QLineEdit] = {}
+        for field_name in ["Source", "Context"]:
+            if field_name in self.note:
+                container = QWidget()
+                row = QHBoxLayout(container)
+                row.addWidget(QLabel(f"{field_name}:"))
+                field_editor = QLineEdit()
+                field_editor.setText(self.note[field_name])
+                # TODO: textChanged
+                row.addWidget(field_editor)
+                self.field_editors[field_name] = field_editor
+                layout.addWidget(container, 0)
         self.canvas = QWidget(self)
         self.canvas.paintEvent = self.paintEvent
         self.canvas.mousePressEvent = self.canvas_press
@@ -163,20 +174,12 @@ class GraphViewDialog(QMainWindow):
 
         width: int = self.canvas.width()
         height: int = self.canvas.height()
-        self.center = (width // 2, height // 2 + 30)
+        self.center = (width // 2, height // 2)
         radius: int = min(width, height) * 2 // 5
         if radius < 20:
             return
 
         painter.setPen(Qt.GlobalColor.white)
-        y_offset: int = 10
-        for field_name in ["Source", "Context"]:
-            if field_name in self.note:
-                y_offset += int(self.show_field(
-                    painter, f"{field_name}: {self.note[field_name]}",
-                    20, y_offset, width - 20
-                ).size().height())
-
         if not self.node_fields:
             painter.drawText(
                 self.center[0] - 50, self.center[1],
@@ -269,16 +272,24 @@ class GraphViewDialog(QMainWindow):
 
     def canvas_double_click(self, event: QMouseEvent | None) -> None:
         if event and self.get_node_at_pos(event.pos()) is None:
+            self.edited_field = None
+            self.note.flush()
             self.fill_editor("new node ...")
             new_index: int = len(self.node_fields) + 1
             self.node_fields[new_index] = "new node ..."
+            models = self.mw.col.models
+            new_model = models.by_name(f"Directed Graph [{new_index}]")
+            info = models.change_notetype_info(
+                old_notetype_id=self.note.mid,
+                new_notetype_id=new_model["id"]
+            )
+            info.input.note_ids.extend([self.note.id])
+            models.change_notetype_of_notes(info.input)
+            self.note = self.mw.col.get_note(self.note.id)
             self.edited_field = f"Node {new_index}"
 
     def get_node_at_pos(self, pos: QPoint) -> int | None:
-        angle = math.atan2(
-            pos.y() - self.center[1],
-            pos.x() - self.center[0]
-        )
+        angle = math.atan2(pos.y() - self.center[1], pos.x() - self.center[0])
         if angle < 0:
             angle += math.tau
         n = len(self.node_fields)
@@ -293,20 +304,16 @@ class GraphViewDialog(QMainWindow):
         old_field, self.edited_field = self.edited_field, None
         doc = self.editor.document()
         if doc:
-            doc.setHtml(text)
+            doc.setPlainText(text)
         else:
             doc = QTextDocument()
-            doc.setHtml(text)
+            doc.setPlainText(text)
             self.editor.setDocument(doc)
         self.edited_field = old_field
 
     def update_text(self) -> None:
         if self.edited_field is not None:
-            new_text = re.sub(
-                "(<meta [^>]+>)|(<style.*?</style>)|(<p[^>]*>)|(</p>)",
-                "", self.editor.toHtml(), flags=re.DOTALL
-            )
-            new_text = re.sub("^\n+", "", new_text, flags=re.MULTILINE)
+            new_text = self.editor.toPlainText()
             self.note[self.edited_field] = new_text
             match = re.match(r"Node (\d+)", self.edited_field)
             if match:
