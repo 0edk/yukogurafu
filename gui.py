@@ -321,5 +321,7 @@ class GraphViewDialog(QMainWindow):
             self.canvas.update()
 
     def accept(self) -> None:
+        for field, editor in self.field_editors.items():
+            self.note[field] = editor.text()
         self.note.flush()
         self.close()
