@@ -7,104 +7,14 @@ from aqt import AnkiQt, dialogs
 from aqt.qt import *
 from aqt.utils import qconnect, showInfo, tooltip
 
-from .gulliver import SweetParser
-from .gulliver.assemble import load_tgf
-from .notes import note_from_graph
-
 Roles = QDialogButtonBox.ButtonRole
 Point = tuple[float, float]
-
-def describe_path(path: str) -> str:
-    head, tail = os.path.split(path)
-    return os.path.join(os.path.basename(head), tail)
 
 def march(start: Point, end: Point, step: float) -> Point:
     x1, y1 = start
     x2, y2 = end
     dist = math.dist(start, end)
     return (x1 + step * (x2 - x1) / dist, y1 + step * (y2 - y1) / dist)
-
-class FileLoadDialog(QMainWindow):
-    def __init__(self, mw: AnkiQt, path: Optional[str] = None) -> None:
-        super().__init__(mw)
-        self.mw = mw
-        if path is None:
-            self.path, _ = QFileDialog.getOpenFileName(
-                self, "Open file", os.environ["HOME"], "GULliVer notes (*.guv)"
-            )
-        else:
-            self.path = path
-        self.setWindowTitle("Graph notes from file")
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Notes"))
-        if self.path:
-            with open(self.path, "r") as f:
-                parser = SweetParser(f.read())
-        else:
-            self.close()
-            return
-        check_container = QWidget()
-        check_layout = QVBoxLayout(check_container)
-        self.forest = []
-        self.checks = []
-        while (bush_root := parser.parse_single()):
-            print(parser.show_context())
-            self.forest.append((parser.nodes, parser.edges, *bush_root))
-            check = QCheckBox(parser.nodes[0], check_container)
-            self.checks.append(check)
-            check_layout.addWidget(check)
-            parser.nodes = []
-            parser.edges = []
-        scroll = QScrollArea()
-        scroll.setWidget(check_container)
-        layout.addWidget(scroll)
-        box = QDialogButtonBox()
-        buttons = [
-            ("Cancel", Roles.RejectRole, self.close),
-            ("Add selected", Roles.AcceptRole, self.accept),
-        ]
-        for label, role, action in buttons:
-            button = box.addButton(label, role)
-            assert button is not None
-            if role == Roles.AcceptRole:
-                button.setAutoDefault(True)
-            else:
-                button.setAutoDefault(False)
-            qconnect(button.clicked, action)
-        layout.addWidget(box)
-        central = QWidget()
-        central.setLayout(layout)
-        self.setCentralWidget(central)
-        vertical = scroll.verticalScrollBar()
-        if vertical:
-            vertical.setValue(vertical.maximum())
-        self.show()
-
-    def accept(self) -> None:
-        added = []
-        col = self.mw.col
-        for entry, picked in zip(self.forest, self.checks):
-            if picked.checkState() == Qt.CheckState.Checked:
-                note = note_from_graph(*entry, col)
-                note["Source"] = note["Source"] or describe_path(self.path)
-                if note:
-                    added.append(note)
-                else:
-                    tooltip(f"Note on {entry[0][0]} is too long")
-                    break
-        else:
-            default = col.decks.id_for_name("Default")
-            assert default is not None
-            for note in added:
-                col.add_note(note, default)
-            tooltip(f"Added {len(added)} notes")
-            self.close()
-
-    def keyPressEvent(self, evt: QKeyEvent | None) -> None:
-        if evt and evt.key() == Qt.Key.Key_Escape:
-            self.close()
-        else:
-            super().keyPressEvent(evt)
 
 class GraphViewDialog(QMainWindow):
     def __init__(self, mw: AnkiQt, note: Note):

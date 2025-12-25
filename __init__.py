@@ -3,7 +3,6 @@ import aqt.utils
 from anki.notes import Note, NoteId
 from aqt.qt import *
 from collections.abc import Sequence
-from . import gulliver
 from .gui import FileLoadDialog, GraphViewDialog
 
 def on_browse_selected() -> None:
@@ -28,7 +27,3 @@ def on_browse_selected() -> None:
 show_graph = QAction("Edit graph note", aqt.mw)
 show_graph.triggered.connect(on_browse_selected)
 aqt.mw.form.menuTools.addAction(show_graph)
-
-show_gui = QAction("Import graph notes", aqt.mw)
-aqt.utils.qconnect(show_gui.triggered, lambda: FileLoadDialog(aqt.mw))
-aqt.mw.form.menuCol.addAction(show_gui)
