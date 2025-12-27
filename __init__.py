@@ -3,7 +3,7 @@ import aqt.utils
 from anki.notes import Note, NoteId
 from aqt.qt import *
 from collections.abc import Sequence
-from .gui import FileLoadDialog, GraphViewDialog
+from .gui import GraphViewDialog
 
 def on_browse_selected() -> None:
     col = aqt.mw.col
