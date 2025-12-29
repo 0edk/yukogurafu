@@ -29,10 +29,10 @@ A term used in many questions and answers becomes a node with many edges to and 
 ## Setup
 Install it from AnkiWeb, when I post it there.
 If needed, restart Anki.
-If it still doesn't work, raise an issue here with details.
+If it still doesn't work, raise an issue here with the error message and/or faulty behaviour.
 
 ## Usage
-All features of Yukogurafu are concentrated in "Edit graph note", in the Tools menu at the top.
+Most features of Yukogurafu are concentrated in "Edit graph note", in the Tools menu at the top.
 That menu entry launches a GUI.
 If you start it with the note browser open, it will operate on whichever note is focused in the browser.
 Otherwise, it will make and operate on a new note, its cards to go in the current deck.
@@ -45,12 +45,18 @@ Respectively, I use those to save why I learned something and what subject it fi
 The text-box at the top edits a field picked based on the graph view shown below.
 The graph view shows nodes (concepts) spaced around a circle, and edges (types of questions) as labelled arrows between them.
 Click on a node to edit that node.
-Click and drag from one node to another to edit the edge pointing between them.
+Node text (and edge text) can include formatting or references to images, but you will have to type that as HTML.
+
+Click and drag from one node to another to edit the single edge pointing from one to the other.
+That edit "creates" an edge when you add text to it, and "deletes" it (and the corresponding card) when you set it empty.
+There are distinct edges from node A to node B and from node B to node A, each optional.
+
 Double-click in the space between nodes to add a new node.
+There is currently no way in this GUI to delete nodes; use "Change Note Type" in the browser for that.
 
 When you're done, click "Save changes".
-That graph note will produce a card for each edge.
-In each card, the front will take the form "**[Context]** [Source node] **[Edge]**", and the back will hold the answer "[Target node]".
+That graph note will produce a card for each non-empty edge.
+In each card, the front will take the form "**Context** Source node **Edge**", and the back will hold the answer "Target node".
 
 Graph notes are implemented as just [another note type]( https://docs.ankiweb.net/getting-started.html#note-types ), so the add-on degrades gracefully: you can work with graph notes from the built-in browser, it's just not conveniently visualised.
 The browser remains recommended for some actions, such as deleting notes, copying notes, moving cards between decks, and removing nodes.
