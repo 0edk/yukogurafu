@@ -5,7 +5,9 @@ from typing import Optional
 from anki.notes import Note
 from aqt import AnkiQt, dialogs
 from aqt.qt import *
-from aqt.utils import qconnect, showInfo, tooltip
+from aqt.utils import qconnect, show_warning, tooltip
+
+from .models import graph_model
 
 Roles = QDialogButtonBox.ButtonRole
 Point = tuple[float, float]
@@ -186,9 +188,17 @@ class GraphViewDialog(QMainWindow):
             self.note.flush()
             self.fill_editor("new node ...")
             new_index: int = len(self.node_fields) + 1
+            if new_index >= 8:
+                show_warning(
+                    "Large graphs hurt performance."
+                    f"Adding {new_index}th node."
+                )
             self.node_fields[new_index] = "new node ..."
             models = self.mw.col.models
             new_model = models.by_name(f"Directed Graph [{new_index}]")
+            if new_model is None:
+                models.add_dict(graph_model(new_index, self.mw.col))
+                new_model = models.by_name(f"Directed Graph [{new_index}]")
             info = models.change_notetype_info(
                 old_notetype_id=self.note.mid,
                 new_notetype_id=new_model["id"]
