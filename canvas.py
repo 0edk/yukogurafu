@@ -108,14 +108,12 @@ class Canvas(QWidget):
     def get_node_at_pos(
         self, pos: QPoint
     ) -> int | None:
-        # TODO: finicky around Node 1
         angle = math.atan2(pos.y() - self.center[1], pos.x() - self.center[0])
-        if angle < 0:
-            angle += math.tau
         n = len(self.node_fields)
-        epsilon = math.tau / (3 * n)
+        epsilon = 1 / (3 * n)
         for i in range(1, n + 1):
-            node_angle = (i % n) * math.tau / n
-            if abs(angle - node_angle) < epsilon:
+            node_angle = i * math.tau / n
+            turns = (angle - node_angle) / math.tau
+            if abs(turns - round(turns)) < epsilon:
                 return i
         return None

@@ -1,10 +1,9 @@
-import os
 import re
 from typing import Optional
 from anki.notes import Note
-from aqt import AnkiQt, dialogs
+from aqt import AnkiQt
 from aqt.qt import *
-from aqt.utils import qconnect, show_warning, tooltip
+from aqt.utils import qconnect, show_warning
 
 from .models import graph_model
 from .canvas import Canvas
