@@ -29,7 +29,7 @@ A term used in many questions and answers becomes a node with many edges to and 
 ## Setup
 Install it from AnkiWeb, when I post it there.
 If needed, restart Anki.
-If it still doesn't work, raise an issue here with the error message and/or faulty behaviour.
+If it still doesn't work, [raise an issue here]( https://github.com/0edk/yukogurafu/issues ) with the error message and/or faulty behaviour.
 
 ## Usage
 Most features of Yukogurafu are concentrated in "Edit graph note", in the Tools menu at the top.
