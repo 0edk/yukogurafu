@@ -1,3 +1,5 @@
+# Yukogurafu
+
 "Yukogurafu" comes from "directed graph" and [Anki's tradition of using Japanese words]( https://en.wiktionary.org/wiki/%E6%9A%97%E8%A8%98#Japanese ), and is the name for an Anki add-on that lets you build notes as directed graphs.
 
 ![four-node graph in Yukogurafu's editor]( usage_example.png )
@@ -8,12 +10,34 @@ Consider the [Anki Manual's example card]( https://docs.ankiweb.net/getting-star
 >
 > A: O
 
+It would also make sense to ask the reverse question.
+You can set the note type to "Basic (and reversed card)", and get this card:
+> Q: O
+>
+> A: Chemical symbol for oxygen?
+
+But if you word it like that, the front of the card is confusing.
+What does "O" mean here?
+What is it asking for?
+> Q: O - element name?
+>
+> A: oxygen - chemical symbol?
+
+This reverses cleanly.
+It's better, but then you have to memorise the question "chemical symbol?" on the back, or remember that it's not really part of the answer.
+
+Ideally, the front of a card shows all of the question, and the back shows only the answer.
+> Q: Element name for O?
+>
+> A: oxygen
+
+But in vanilla Anki, that has to be a separate note.
+You must repeat yourself.
+We can do better.
+
 The card associates "oxygen" to "O" via the relation "chemical symbol".
 Another card could just as well associate "N" to "O" via "next element", or "oxygen" to "diatomic gas" via "common form", or "O" to "oxygen" via "element name".
-But Anki's built-in note types leave this structure opaque.
-They put one side of the association, and the relation, together in `Front`.
-The other side of the association goes in `Back`.
-We can do better.
+In each case, one concept and a relation make the front of a card, while another concept makes the back of the card.
 
 Concepts/terms/phrases : relations :: nodes : edges.
 Each card can correspond to an edge in a graph.
