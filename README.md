@@ -52,6 +52,7 @@ A term used in many questions and answers becomes a node with many edges to and 
 
 ## Setup
 Install it from AnkiWeb, when I post it there.
+Until then, download the ZIP and install it manually with Anki's menu.
 If needed, restart Anki.
 If it still doesn't work, [raise an issue here]( https://github.com/0edk/yukogurafu/issues ) with the error message and/or faulty behaviour.
 

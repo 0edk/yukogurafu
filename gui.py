@@ -92,7 +92,7 @@ class GraphViewDialog(QMainWindow):
     def canvas_double_click(self, event: QMouseEvent | None) -> None:
         if event and self.canvas.get_node_at_pos(event.pos()) is None:
             self.edited_field = None
-            self.note.flush()
+            self.mw.col.update_note(self.note)
             self.fill_editor("new node ...")
             new_index: int = len(self.node_fields) + 1
             if new_index >= 8:
@@ -139,5 +139,5 @@ class GraphViewDialog(QMainWindow):
     def accept(self) -> None:
         for field, editor in self.field_editors.items():
             self.note[field] = editor.text()
-        self.note.flush()
+        self.mw.col.update_note(self.note)
         self.close()
