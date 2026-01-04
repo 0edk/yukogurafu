@@ -12,16 +12,16 @@ def march(start: Point, end: Point, step: float) -> Point:
     return (x1 + step * (x2 - x1) / dist, y1 + step * (y2 - y1) / dist)
 
 class Canvas(QWidget):
-    def __init__(self, parent: QMainWindow):
+    def __init__(self, parent: QWidget, order: int):
         super().__init__(parent)
         self.framer = parent
         self.center: tuple[int, int] = (0, 0)
-        self.note: Note
-        self.node_fields: dict[int, str]
+        self.order = order
 
     def paintEvent(self, a0: QPaintEvent | None) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.GlobalColor.white)
 
         width: int = self.width()
         height: int = self.height()
@@ -30,17 +30,9 @@ class Canvas(QWidget):
         if radius < 20:
             return
 
-        painter.setPen(Qt.GlobalColor.white)
-        if not self.node_fields:
-            painter.drawText(
-                self.center[0] - 50, self.center[1],
-                "No Node fields found"
-            )
-            return
-
         positions: dict[int, Point] = {}
-        count: int = len(self.node_fields)
-        for index in self.node_fields:
+        count: int = self.order
+        for index in range(1, self.order + 1):
             angle: float = math.tau * index / count
             positions[index] = (
                 self.center[0] + radius * math.cos(angle),
@@ -48,11 +40,11 @@ class Canvas(QWidget):
             )
 
         painter.setPen(QPen(QColor(0, 255, 0), 3))
+        note = self.framer.fields
         for i in positions:
             for j in positions:
                 if i != j:
                     field = f"Edge {i} {j}"
-                    note = self.note
                     if field in note and note[field].strip():
                         self.draw_arrow(
                             painter,
@@ -63,9 +55,11 @@ class Canvas(QWidget):
                         ex -= 30
                         self.show_field(painter, note[field], ex, ey, 80)
 
-        for index, content in self.node_fields.items():
+        for index in range(1, self.order + 1):
             x, y = positions[index]
-            self.show_field(painter, content, x - 60, y - 20, 120)
+            self.show_field(
+                painter, note[f"Node {index}"], x - 60, y - 20, 120
+            )
 
     def fix_media_paths(self, html):
         return re.sub(
@@ -109,7 +103,7 @@ class Canvas(QWidget):
         self, pos: QPoint
     ) -> int | None:
         angle = math.atan2(pos.y() - self.center[1], pos.x() - self.center[0])
-        n = len(self.node_fields)
+        n = self.order
         epsilon = 1 / (3 * n)
         for i in range(1, n + 1):
             node_angle = i * math.tau / n
