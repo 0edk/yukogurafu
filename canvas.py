@@ -32,7 +32,7 @@ class Canvas(QWidget):
 
         positions: dict[int, Point] = {}
         count: int = self.order
-        for index in range(1, self.order + 1):
+        for index in indices(self.order):
             angle: float = math.tau * index / count
             positions[index] = (
                 self.center[0] + radius * math.cos(angle),
@@ -55,7 +55,7 @@ class Canvas(QWidget):
                         ex -= 30
                         self.show_field(painter, note[field], ex, ey, 80)
 
-        for index in range(1, self.order + 1):
+        for index in indices(self.order):
             x, y = positions[index]
             self.show_field(
                 painter, note[f"Node {index}"], x - 60, y - 20, 120
@@ -105,7 +105,7 @@ class Canvas(QWidget):
         angle = math.atan2(pos.y() - self.center[1], pos.x() - self.center[0])
         n = self.order
         epsilon = 1 / (3 * n)
-        for i in range(1, n + 1):
+        for i in indices(n):
             node_angle = i * math.tau / n
             turns = (angle - node_angle) / math.tau
             if abs(turns - round(turns)) < epsilon:

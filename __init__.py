@@ -5,7 +5,7 @@ import aqt
 from anki.models import TemplateDict
 from anki.notes import NoteId
 
-from .flashcard_topology import NoteTopology, TopologyDialog
+from .flashcard_topology import indices, NoteTopology, TopologyDialog
 from .gui import GraphViewDialog
 from .models import make_edge, name_edge
 
@@ -18,12 +18,12 @@ class GraphTopology(NoteTopology):
         manager = self.mw.col.models
         return itertools.chain(*((
             make_edge(manager, i, j) for j in range(1, i) if i != j
-        ) for i in range(1, order + 1)))
+        ) for i in indices(order))
 
     @staticmethod
     def make_fields(order: int) -> Iterable[str]:
         fields = ["Context", "Source"]
-        for i in range(1, order + 1):
+        for i in indices(order):
             fields.append(f"Node {i}")
             fields.extend(itertools.chain(*(
                 (name_edge(j, i), name_edge(i, j))
