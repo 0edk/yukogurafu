@@ -18,7 +18,7 @@ class GraphTopology(NoteTopology):
         manager = self.mw.col.models
         return itertools.chain(*((
             make_edge(manager, i, j) for j in range(1, i) if i != j
-        ) for i in indices(order))
+        ) for i in indices(order)))
 
     @staticmethod
     def make_fields(order: int) -> Iterable[str]:

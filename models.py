@@ -11,4 +11,4 @@ def make_edge(manager: ModelManager, i: int, j: int) -> TemplateDict:
         f"<strong>{{{{{edge}}}}}</strong>{{{{/{edge}}}}}")
     template["afmt"] = (f"{{{{FrontSide}}}}\n<hr id=answer>\n"
         f"{{{{Node {j}}}}}")
-    return edge, template
+    return template
