@@ -51,15 +51,19 @@ A term used in many questions and answers becomes a node with many edges to and 
 ![the oxygen example above in graph form]( oxygen.png )
 
 ## Setup
-Install it from AnkiWeb, when I post it there.
-Until then, download the ZIP and install it manually with Anki's menu.
+[Install it from AnkiWeb.]( https://ankiweb.net/shared/info/665790891 )
+Or download the ZIP, and install it manually with Anki's menu.
 If needed, restart Anki.
 If it still doesn't work, [raise an issue here]( https://github.com/0edk/yukogurafu/issues ) with the error message and/or faulty behaviour.
 
 ## Usage
-Most features of Yukogurafu are concentrated in "Edit graph note", in the Tools menu at the top.
-That menu entry launches a GUI.
-If you start it with the note browser open, it will operate on whichever note is focused in the browser.
+Yukogurafu centres around the `Directed Graph [n]` [note types]( https://docs.ankiweb.net/getting-started.html#note-types ), with `n` the number of nodes in the graph, holding a field for each node and each possible edge, in both directions.
+Those note types are dynamically created by the GUI that serves to edit such notes.
+Those notes each produce one card per non-empty directed edge.
+In each card, the front will take the form "**Context** Source node **Edge**", and the back will hold the answer "Target node".
+
+From the top bar's Tools menu, click "Edit Directed Graph" to launch Yukogurafu's GUI.
+If you launch it with the note browser open, it will operate on whichever note is focused in the browser.
 Otherwise, it will make and operate on a new note, its cards to go in the current deck.
 
 Two labelled text-boxes near the top edit fields `Source` and `Context`.
@@ -77,11 +81,11 @@ That edit "creates" an edge when you add text to it, and "deletes" it (and the c
 There are distinct edges from node A to node B and from node B to node A, each optional.
 
 Double-click in the space between nodes to add a new node.
+There is no strict maximum size of a graph, but large graphs may cause performance issues.
 There is currently no way in this GUI to delete nodes; use "Change Note Type" in the browser for that.
 
-When you're done, click "Save changes".
-That graph note will produce a card for each non-empty edge.
-In each card, the front will take the form "**Context** Source node **Edge**", and the back will hold the answer "Target node".
+Click OK to write changes to the collection.
+It is only then that any cards formed from the updated graph are added.
 
-Graph notes are implemented as just [another note type]( https://docs.ankiweb.net/getting-started.html#note-types ), so the add-on degrades gracefully: you can work with graph notes from the built-in browser, it's just not conveniently visualised.
+As graph notes are just another note type, the add-on degrades gracefully: you can work with graph notes from the built-in browser, it's just not conveniently visualised.
 The browser remains recommended for some actions, such as deleting notes, copying notes, moving cards between decks, and removing nodes.
