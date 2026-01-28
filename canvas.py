@@ -3,6 +3,8 @@ import re
 from anki.notes import Note
 from aqt.qt import *
 
+from .flashcard_topology import indices
+
 Point = tuple[float, float]
 
 def march(start: Point, end: Point, step: float) -> Point:
