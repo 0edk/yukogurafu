@@ -1,6 +1,5 @@
 import math
 import re
-from anki.notes import Note
 from aqt.qt import *
 
 from .flashcard_topology import indices
@@ -60,42 +59,27 @@ class Canvas(QWidget):
                     angles.append(min(
                         (math.tau if i == 0 else 0) + inner[i] - inner[i - 1]
                         for i in range(len(inner))
-                    ) - max(
-                        max(-10, 200 - math.dist(positions[k], (x0, y0))) ** 2
-                        for k in positions if k != n
                     ))
             return min(angles) if angles else math.pi
 
-        perturb = 0.01
-        rate = 0.08
-        for _ in range(100):
-            base = score(self.positions)
-            grad = {n: [0.0, 0.0] for n in self.positions}
-            for node in self.positions:
-                for dim in range(2):
-                    self.positions[node][dim] += perturb
-                    grad[node][dim] = (score(self.positions) - base) / perturb
-                    self.positions[node][dim] -= perturb
-            for node in self.positions:
-                x, y = self.positions[node]
-                self.positions[node] = [
-                    x + rate * grad[node][0], y + rate * grad[node][1]
-                ]
-
-        x_bounds = (
-            min(p[0] for p in self.positions.values()),
-            max(p[0] for p in self.positions.values())
-        )
-        y_bounds = (
-            min(p[1] for p in self.positions.values()),
-            max(p[1] for p in self.positions.values())
-        )
-        for n in self.positions:
-            x, y = self.positions[n]
-            self.positions[n] = [
-                (0.1 + 0.8 * remap(x_bounds, x)) * width,
-                (0.1 + 0.8 * remap(y_bounds, y)) * height
-            ]
+        improved = True
+        base = score(self.positions)
+        while improved:
+            improved = False
+            for i in self.positions:
+                for j in self.positions:
+                    if i != j:
+                        self.positions[i], self.positions[j] = (
+                            self.positions[j], self.positions[i]
+                        )
+                        new_score = score(self.positions)
+                        if new_score > base:
+                            base = new_score
+                            improved = True
+                        else:
+                            self.positions[i], self.positions[j] = (
+                                self.positions[j], self.positions[i]
+                            )
 
     def paintEvent(self, a0: QPaintEvent | None) -> None:
         painter = QPainter(self)
@@ -170,6 +154,6 @@ class Canvas(QWidget):
     ) -> int | None:
         dists = sorted((math.dist((pos.x(), pos.y()), self.positions[n]), n)
             for n in self.positions)
-        if dists[0][0] > 50 and dists[0][0] / dists[1][0] > 0.8:
+        if dists[0][0] > 50 and dists[0][0] / dists[1][0] > 0.7:
             return None
         return dists[0][1]
