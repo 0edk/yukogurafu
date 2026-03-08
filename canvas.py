@@ -13,6 +13,9 @@ def march(start: Point, end: Point, step: float) -> Point:
     dist = math.dist(start, end)
     return [x1 + step * (x2 - x1) / dist, y1 + step * (y2 - y1) / dist]
 
+def remap(bounds: tuple[float, float], point: float) -> float:
+    return (point - bounds[0]) / (bounds[1] - bounds[0])
+
 class Canvas(QWidget):
     def __init__(self, parent: QWidget, order: int):
         super().__init__(parent)
@@ -59,12 +62,12 @@ class Canvas(QWidget):
                         for i in range(len(inner))
                     ) - max(
                         max(-10, 200 - math.dist(positions[k], (x0, y0))) ** 2
-                        for k in nbs[n]
+                        for k in positions if k != n
                     ))
-            return sum(angles) / len(angles) if angles else math.pi
+            return min(angles) if angles else math.pi
 
         perturb = 0.01
-        rate = 1000
+        rate = 0.08
         for _ in range(100):
             base = score(self.positions)
             grad = {n: [0.0, 0.0] for n in self.positions}
@@ -73,12 +76,26 @@ class Canvas(QWidget):
                     self.positions[node][dim] += perturb
                     grad[node][dim] = (score(self.positions) - base) / perturb
                     self.positions[node][dim] -= perturb
-            for n in self.positions:
-                x, y = self.positions[n]
-                self.positions[n] = [
-                    max(0.1 * width, min(0.9 * width, x + rate * grad[n][0])),
-                    max(0.1 * height, min(0.9 * height, y + rate * grad[n][1]))
+            for node in self.positions:
+                x, y = self.positions[node]
+                self.positions[node] = [
+                    x + rate * grad[node][0], y + rate * grad[node][1]
                 ]
+
+        x_bounds = (
+            min(p[0] for p in self.positions.values()),
+            max(p[0] for p in self.positions.values())
+        )
+        y_bounds = (
+            min(p[1] for p in self.positions.values()),
+            max(p[1] for p in self.positions.values())
+        )
+        for n in self.positions:
+            x, y = self.positions[n]
+            self.positions[n] = [
+                (0.1 + 0.8 * remap(x_bounds, x)) * width,
+                (0.1 + 0.8 * remap(y_bounds, y)) * height
+            ]
 
     def paintEvent(self, a0: QPaintEvent | None) -> None:
         painter = QPainter(self)
@@ -151,12 +168,8 @@ class Canvas(QWidget):
     def get_node_at_pos(
         self, pos: QPoint
     ) -> int | None:
-        angle = math.atan2(pos.y() - self.center[1], pos.x() - self.center[0])
-        n = self.order
-        epsilon = 1 / (3 * n)
-        for i in indices(n):
-            node_angle = i * math.tau / n
-            turns = (angle - node_angle) / math.tau
-            if abs(turns - round(turns)) < epsilon:
-                return i
-        return None
+        dists = sorted((math.dist((pos.x(), pos.y()), self.positions[n]), n)
+            for n in self.positions)
+        if dists[0][0] > 50 and dists[0][0] / dists[1][0] > 0.8:
+            return None
+        return dists[0][1]
