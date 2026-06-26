@@ -4,7 +4,7 @@ from typing import Iterable, Optional
 import aqt
 from aqt.utils import tooltip, show_warning
 from anki.models import TemplateDict
-from anki.notes import NoteId
+from anki.notes import Note, NoteId
 
 from .flashcard_topology import indices, NoteTopology, TopologyDialog
 from .gui import GraphViewDialog
@@ -71,57 +71,62 @@ try:
     CONTAINER_NAME = "graphviz_svg"
 
     def escape_gv(text: str) -> str:
-        for orig, rep in [("\\", "\\\\"), ("(", "\\("), (")", "\\)")]:
+        for orig, rep in [("\\", "\\\\")]:
             text = text.replace(orig, rep)
         return "<" + text + ">"
+
+    def graphviz_svg(note: Note) -> bytes:
+        graph = graphviz.Digraph()
+        for name, content in note.items():
+            if name.startswith("Node"):
+                if content:
+                    graph.node(name.split()[1], escape_gv(content))
+            elif name.startswith("Edge"):
+                if content:
+                    graph.edge(
+                        *name.split()[1:],
+                        label=escape_gv(content),
+                    )
+            elif name in ["Context", "Source"]:
+                pass
+            else:
+                show_warning(
+                    f"tried to show non-graph as graph, violated by {name}"
+                )
+                return b""
+        try:
+            return graph.pipe(format="svg", quiet=True)
+        except CalledProcessError as e:
+            show_warning(f"error in graphviz: {e} from code {graph.source}")
+            return b""
 
     def on_load_note(editor: Editor):
         note_type_name: str = editor.note_type()["name"]
         tooltip(note_type_name)
         if GraphTopology.note_fits(editor.note):
-            graph = graphviz.Digraph()
-            for name, content in editor.note.items():
-                if name.startswith("Node"):
-                    if content:
-                        graph.node(name.split()[1], escape_gv(content))
-                elif name.startswith("Edge"):
-                    if content:
-                        graph.edge(
-                            *name.split()[1:],
-                            label=escape_gv(content),
-                        )
-                elif name in ["Context", "Source"]:
-                    pass
-                else:
-                    tooltip("not a graph")
-                    return
-            try:
-                svg: bytes = graph.pipe(format="svg", quiet=True)
-                w = QSvgWidget()
-                w.load(svg)
-                natural: QSize = w.renderer().defaultSize()
-                outer: QLayout = editor.widget.layout()
-                for item in map(outer.itemAt, range(outer.count())):
-                    if (item and item.widget() and
-                        item.widget().objectName() == CONTAINER_NAME):
-                        old = item.widget()
-                        outer.removeWidget(old)
-                        old.deleteLater()
-                        break
-                old_index: int = outer.indexOf(editor.web)
-                outer.removeWidget(editor.web)
-                container = QWidget()
-                container.setObjectName(CONTAINER_NAME)
-                box = (QHBoxLayout(container)
-                   if natural.height() > natural.width()
-                   else QVBoxLayout(container))
-                box.addWidget(w, alignment=
-                    Qt.AlignmentFlag.AlignVCenter |
-                    Qt.AlignmentFlag.AlignLeft)
-                box.addWidget(editor.web)
-                outer.insertWidget(old_index, container)
-            except CalledProcessError as e:
-                show_warning(f"error in graphviz: {e} from code {graph.source}")
+            w = QSvgWidget()
+            w.load(graphviz_svg(editor.note))
+            natural: QSize = w.renderer().defaultSize()
+            outer: QLayout = editor.widget.layout()
+            for item in map(outer.itemAt, range(outer.count())):
+                if (item and item.widget() and
+                    item.widget().objectName() == CONTAINER_NAME):
+                    old = item.widget()
+                    outer.removeWidget(old)
+                    old.deleteLater()
+                    break
+            old_index: int = outer.indexOf(editor.web)
+            outer.removeWidget(editor.web)
+            container = QWidget()
+            container.setObjectName(CONTAINER_NAME)
+            box = (QHBoxLayout(container)
+               if natural.height() > natural.width()
+               else QVBoxLayout(container))
+            box.addWidget(w, alignment=
+                Qt.AlignmentFlag.AlignVCenter |
+                Qt.AlignmentFlag.AlignLeft)
+            box.addWidget(editor.web)
+            outer.insertWidget(old_index, container)
 
     editor_did_load_note.append(on_load_note)
 except ImportError as e:
