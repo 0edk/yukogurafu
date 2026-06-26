@@ -2,6 +2,7 @@ import itertools
 from typing import Iterable, Optional
 
 import aqt
+from aqt.utils import tooltip, show_warning
 from anki.models import TemplateDict
 from anki.notes import NoteId
 
@@ -58,3 +59,58 @@ class GraphTopology(NoteTopology):
         return GraphViewDialog(fields, note_id, self)
 
 GraphTopology(aqt.mw)
+
+try:
+    from subprocess import CalledProcessError
+    import graphviz
+    from aqt.editor import Editor
+    from aqt.qt import *
+    from aqt.gui_hooks import editor_did_load_note
+    from PyQt6.QtSvgWidgets import QSvgWidget
+
+    def escape_gv(text: str) -> str:
+        for orig, rep in [("\\", "\\\\"), ("(", "\\("), (")", "\\)")]:
+            text = text.replace(orig, rep)
+        return "<" + text + ">"
+
+    def on_load_note(editor: Editor):
+        note_type_name: str = editor.note_type()["name"]
+        tooltip(note_type_name)
+        if GraphTopology.note_fits(editor.note):
+            graph = graphviz.Digraph()
+            for name, content in editor.note.items():
+                if name.startswith("Node"):
+                    if content:
+                        graph.node(name.split()[1], escape_gv(content))
+                elif name.startswith("Edge"):
+                    if content:
+                        graph.edge(
+                            *name.split()[1:],
+                            label=escape_gv(content),
+                        )
+                elif name in ["Context", "Source"]:
+                    pass
+                else:
+                    tooltip("not a graph")
+                    return
+            try:
+                svg: bytes = graph.pipe(format="svg", quiet=True)
+                w = QSvgWidget()
+                w.load(svg)
+                natural: QSize = w.renderer().defaultSize()
+                if natural.isValid():
+                    w.setMaximumWidth(400)
+                outer: QLayout = editor.widget.layout()
+                old_index: int = outer.indexOf(editor.web)
+                outer.removeWidget(editor.web)
+                container = QWidget()
+                hbox = QHBoxLayout(container)
+                hbox.addWidget(w, alignment=Qt.AlignmentFlag.AlignVCenter)
+                hbox.addWidget(editor.web)
+                outer.insertWidget(old_index, container)
+            except CalledProcessError as e:
+                show_warning(f"error in graphviz: {e} from code {graph.source}")
+
+    editor_did_load_note.append(on_load_note)
+except ImportError as e:
+    show_warning(f"missing module: {e.name}")
