@@ -68,6 +68,8 @@ try:
     from aqt.gui_hooks import editor_did_load_note
     from PyQt6.QtSvgWidgets import QSvgWidget
 
+    CONTAINER_NAME = "graphviz_svg"
+
     def escape_gv(text: str) -> str:
         for orig, rep in [("\\", "\\\\"), ("(", "\\("), (")", "\\)")]:
             text = text.replace(orig, rep)
@@ -98,15 +100,25 @@ try:
                 w = QSvgWidget()
                 w.load(svg)
                 natural: QSize = w.renderer().defaultSize()
-                if natural.isValid():
-                    w.setMaximumWidth(400)
                 outer: QLayout = editor.widget.layout()
+                for item in map(outer.itemAt, range(outer.count())):
+                    if (item and item.widget() and
+                        item.widget().objectName() == CONTAINER_NAME):
+                        old = item.widget()
+                        outer.removeWidget(old)
+                        old.deleteLater()
+                        break
                 old_index: int = outer.indexOf(editor.web)
                 outer.removeWidget(editor.web)
                 container = QWidget()
-                hbox = QHBoxLayout(container)
-                hbox.addWidget(w, alignment=Qt.AlignmentFlag.AlignVCenter)
-                hbox.addWidget(editor.web)
+                container.setObjectName(CONTAINER_NAME)
+                box = (QHBoxLayout(container)
+                   if natural.height() > natural.width()
+                   else QVBoxLayout(container))
+                box.addWidget(w, alignment=
+                    Qt.AlignmentFlag.AlignVCenter |
+                    Qt.AlignmentFlag.AlignLeft)
+                box.addWidget(editor.web)
                 outer.insertWidget(old_index, container)
             except CalledProcessError as e:
                 show_warning(f"error in graphviz: {e} from code {graph.source}")
