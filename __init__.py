@@ -154,10 +154,11 @@ try:
         _svg_widget.updateGeometry()
  
     def on_focus_field(note: Note, current_field_idx: int):
-        _svg_widget.load(graphviz_svg(
-            note, note.keys()[current_field_idx]
-            if current_field_idx >= 0 else ""
-        ))
+        if GraphTopology.note_fits(editor.note):
+            _svg_widget.load(graphviz_svg(
+                note, note.keys()[current_field_idx]
+                if current_field_idx >= 0 else ""
+            ))
 
     def on_unfocus_field(
         changed: bool, note: Note, current_field_idx: int
