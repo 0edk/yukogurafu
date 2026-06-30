@@ -89,10 +89,15 @@ try:
 
     EMPTY_GRAPH: graphviz.Graph = graphviz.Graph()
     MINIMAL_SVG: bytes = EMPTY_GRAPH.pipe(format="svg")
+    GV_REPLACES: list[tuple[str, str]] = [
+        ("\\", "\\\\"),
+        ("<code>", "<font face=\"monospace\">"),
+        ("</code>", "</font>"),
+    ]
     _svg_widget: Optional[DimensionedSvgWidget] = None
 
     def escape_gv(text: str) -> str:
-        for orig, rep in [("\\", "\\\\")]:
+        for orig, rep in GV_REPLACES:
             text = text.replace(orig, rep)
         return "<" + text + ">"
 
