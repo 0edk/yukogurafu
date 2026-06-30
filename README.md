@@ -2,7 +2,7 @@
 
 "Yukogurafu" comes from "directed graph" and [Anki's tradition of using Japanese words]( https://en.wiktionary.org/wiki/%E6%9A%97%E8%A8%98#Japanese ), and is the name for an Anki add-on that lets you build notes as directed graphs.
 
-![four-node graph in Yukogurafu's editor]( usage_example.png )
+![four-node graph in enhanced Anki editor]( editor_example.png )
 
 ## Theory
 Consider the [Anki Manual's example card]( https://docs.ankiweb.net/getting-started.html#key-concepts ):
@@ -53,6 +53,7 @@ A term used in many questions and answers becomes a node with many edges to and 
 ## Setup
 [Install it from AnkiWeb.]( https://ankiweb.net/shared/info/665790891 )
 Or download the ZIP, and install it manually with Anki's menu.
+For live feedback in the built-in editor, also [install `python-graphviz`]( https://repology.org/project/python%3Agraphviz/versions ).
 If needed, restart Anki.
 If it still doesn't work, [raise an issue here]( https://github.com/0edk/yukogurafu/issues ) with the error message and/or faulty behaviour.
 
@@ -65,6 +66,8 @@ In each card, the front will take the form "**Context** Source node **Edge**", a
 From the top bar's Tools menu, click "Edit Directed Graph" to launch Yukogurafu's GUI.
 If you launch it with the note browser open, it will operate on whichever note is focused in the browser.
 Otherwise, it will make and operate on a new note, its cards to go in the current deck.
+
+![four-node graph in Yukogurafu's editor]( usage_example.png )
 
 Two labelled text-boxes near the top edit fields `Source` and `Context`.
 `Source` can hold information that won't appear in the cards.
@@ -87,5 +90,7 @@ There is currently no way in this GUI to delete nodes; use "Change Note Type" in
 Click OK to write changes to the collection.
 It is only then that any cards formed from the updated graph are added.
 
-As graph notes are just another note type, the add-on degrades gracefully: you can work with graph notes from the built-in browser, it's just not conveniently visualised.
-The browser remains recommended for some actions, such as deleting notes, copying notes, moving cards between decks, and removing nodes.
+As graph notes are just another note type, you can also make and edit them in the usual Anki editor.
+The built-in editor is recommended to edit notes, delete notes, copy notes, move cards, or remove nodes.
+Yukogurafu adds a live visual of each graph above the editor.
+You can make a new graph note in the built-in Add menu iff you have previously made graph notes of that size in Yukogurafu's GUI.
