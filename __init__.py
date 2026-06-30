@@ -148,13 +148,14 @@ try:
     def on_load_note(editor: Editor):
         assert _svg_widget is not None
         if GraphTopology.note_fits(editor.note):
-            _svg_widget.load(graphviz_svg(editor.note))
+            s = graphviz_svg(editor.note)
+            _svg_widget.load(s)
         else:
             _svg_widget.load(MINIMAL_SVG)
         _svg_widget.updateGeometry()
  
     def on_focus_field(note: Note, current_field_idx: int):
-        if GraphTopology.note_fits(editor.note):
+        if GraphTopology.note_fits(note):
             _svg_widget.load(graphviz_svg(
                 note, note.keys()[current_field_idx]
                 if current_field_idx >= 0 else ""
@@ -163,8 +164,8 @@ try:
     def on_unfocus_field(
         changed: bool, note: Note, current_field_idx: int
     ) -> bool:
-        if changed:
-            on_focus_field(note, -1)
+        on_focus_field(note, -1)
+        _svg_widget.updateGeometry()
         return False
 
     editor_did_init.append(on_init)
