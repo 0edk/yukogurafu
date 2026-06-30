@@ -1,8 +1,10 @@
 import math
 import re
+from typing import Optional
+
 from aqt.qt import *
 
-from .flashcard_topology import indices
+from .flashcard_topology import indices, TopologyDialog
 
 Point = list[float]
 
@@ -18,7 +20,8 @@ def remap(bounds: tuple[float, float], point: float) -> float:
 class Canvas(QWidget):
     def __init__(self, parent: QWidget, order: int):
         super().__init__(parent)
-        self.framer = parent
+        assert isinstance(parent, TopologyDialog)
+        self.framer: TopologyDialog = parent
         self.center: tuple[int, int] = (0, 0)
         self.order = order
         self.positions: dict[int, Point] = {}
@@ -157,3 +160,21 @@ class Canvas(QWidget):
         if dists[0][0] > 50 and dists[0][0] / dists[1][0] > 0.7:
             return None
         return dists[0][1]
+
+    def mousePressEvent(self, a0: QMouseEvent | None):
+        try:
+            return getattr(self.framer, "canvas_press")(a0)
+        except AttributeError:
+            pass
+
+    def mouseReleaseEvent(self, a0: QMouseEvent | None):
+        try:
+            return getattr(self.framer, "canvas_release")(a0)
+        except AttributeError:
+            pass
+
+    def mouseDoubleClickEvent(self, a0: QMouseEvent | None):
+        try:
+            return getattr(self.framer, "canvas_double_click")(a0)
+        except AttributeError:
+            pass

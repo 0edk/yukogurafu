@@ -26,14 +26,18 @@ try:
             return True
 
         def heightForWidth(self, w: int) -> int:
+            r = self.renderer()
+            assert r is not None
             # reads from SVG width/height or viewBox
-            s = self.renderer().defaultSize()
+            s = r.defaultSize()
             if s.width() == 0:
                 return s.height()
             return round(s.height() * min(w / s.width(), 1))
 
         def sizeHint(self) -> QSize:
-            return self.renderer().defaultSize()
+            r = self.renderer()
+            assert r is not None
+            return r.defaultSize()
 
     EMPTY_GRAPH: graphviz.Graph = graphviz.Graph()
     MINIMAL_SVG: bytes = EMPTY_GRAPH.pipe(format="svg")
@@ -82,7 +86,8 @@ try:
     def on_init(editor: Editor):
         global _svg_widget
         _svg_widget = DimensionedSvgWidget()
-        outer: QLayout = editor.widget.layout()
+        outer: QLayout | None = editor.widget.layout()
+        assert isinstance(outer, QBoxLayout)
         old_index: int = outer.indexOf(editor.web)
         outer.removeWidget(editor.web)
         container = QWidget()
@@ -95,7 +100,7 @@ try:
 
     def on_load_note(editor: Editor):
         assert _svg_widget is not None
-        if GraphTopology.note_fits(editor.note):
+        if editor.note is not None and GraphTopology.note_fits(editor.note):
             s = graphviz_svg(editor.note)
             _svg_widget.load(s)
         else:
@@ -103,6 +108,7 @@ try:
         _svg_widget.updateGeometry()
  
     def on_focus_field(note: Note, current_field_idx: int):
+        assert _svg_widget is not None
         if GraphTopology.note_fits(note):
             _svg_widget.load(graphviz_svg(
                 note, note.keys()[current_field_idx]
@@ -113,6 +119,7 @@ try:
         changed: bool, note: Note, current_field_idx: int
     ) -> bool:
         on_focus_field(note, -1)
+        assert _svg_widget is not None
         _svg_widget.updateGeometry()
         return False
 

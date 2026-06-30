@@ -15,9 +15,10 @@ class GraphTopology(NoteTopology):
 
     def make_templates(self, order: int) -> Iterable[TemplateDict]:
         manager = self.mw.col.models
-        return itertools.chain(*((lambda i=i: (
-            make_edge(manager, i, j) for j in indices(order) if i != j
-        ))() for i in indices(order)))
+        return (make_edge(manager, i, j)
+            for i in indices(order)
+            for j in indices(order)
+            if i != j)
 
     @staticmethod
     def make_fields(order: int) -> Iterable[str]:

@@ -26,9 +26,6 @@ class GraphViewDialog(TopologyDialog):
                 inner_layout.addWidget(container, 0)
 
         self.canvas = Canvas(self, self.topo.measure_order(self.fields))
-        self.canvas.mousePressEvent = self.canvas_press
-        self.canvas.mouseReleaseEvent = self.canvas_release
-        self.canvas.mouseDoubleClickEvent = self.canvas_double_click
         inner_layout.addWidget(self.canvas, 1)
 
         self.press_node: Optional[int] = None
