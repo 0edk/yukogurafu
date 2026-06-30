@@ -65,27 +65,37 @@ try:
     import graphviz
     from aqt.editor import Editor
     from aqt.qt import *
-    from aqt.gui_hooks import editor_did_load_note
+    from aqt.gui_hooks import (
+        editor_did_load_note,
+        editor_did_focus_field,
+        editor_did_unfocus_field,
+    )
     from PyQt6.QtSvgWidgets import QSvgWidget
 
     CONTAINER_NAME = "graphviz_svg"
+    _current_editor: Optional[Editor] = None
 
     def escape_gv(text: str) -> str:
         for orig, rep in [("\\", "\\\\")]:
             text = text.replace(orig, rep)
         return "<" + text + ">"
 
-    def graphviz_svg(note: Note) -> bytes:
+    def graphviz_svg(note: Note, focus: str = "") -> bytes:
         graph = graphviz.Digraph()
         for name, content in note.items():
             if name.startswith("Node"):
                 if content:
-                    graph.node(name.split()[1], escape_gv(content))
+                    graph.node(
+                        name.split()[1],
+                        escape_gv(content),
+                        penwidth="4" if name == focus else "1",
+                    )
             elif name.startswith("Edge"):
                 if content:
                     graph.edge(
                         *name.split()[1:],
                         label=escape_gv(content),
+                        penwidth="4" if name == focus else "1",
                     )
             elif name in ["Context", "Source"]:
                 pass
@@ -101,6 +111,8 @@ try:
             return b""
 
     def on_load_note(editor: Editor):
+        global _current_editor
+        _current_editor = editor
         note_type_name: str = editor.note_type()["name"]
         tooltip(note_type_name)
         if GraphTopology.note_fits(editor.note):
@@ -128,6 +140,31 @@ try:
             box.addWidget(editor.web)
             outer.insertWidget(old_index, container)
 
+    def on_focus_field(note: Note, current_field_idx: int):
+        tooltip(f"focusing {current_field_idx}")
+        outer: QLayout = _current_editor.widget.layout()
+        old = None
+        for item in map(outer.itemAt, range(outer.count())):
+            if (item and item.widget() and
+                item.widget().objectName() == CONTAINER_NAME):
+                old = item.widget()
+                break
+        else:
+            tooltip("couldn't find old graphic to update")
+        old.layout().itemAt(0).widget().load(graphviz_svg(
+            note, note.keys()[current_field_idx]
+            if current_field_idx >= 0 else ""
+        ))
+
+    def on_unfocus_field(
+        changed: bool, note: Note, current_field_idx: int
+    ) -> bool:
+        if changed:
+            on_focus_field(note, -1)
+        return False
+
     editor_did_load_note.append(on_load_note)
+    editor_did_focus_field.append(on_focus_field)
+    editor_did_unfocus_field.append(on_unfocus_field)
 except ImportError as e:
     show_warning(f"missing module: {e.name}")
