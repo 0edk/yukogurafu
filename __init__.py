@@ -66,14 +66,30 @@ try:
     from aqt.editor import Editor
     from aqt.qt import *
     from aqt.gui_hooks import (
+        editor_did_init,
         editor_did_load_note,
         editor_did_focus_field,
         editor_did_unfocus_field,
     )
     from PyQt6.QtSvgWidgets import QSvgWidget
 
-    CONTAINER_NAME = "graphviz_svg"
-    _current_editor: Optional[Editor] = None
+    class DimensionedSvgWidget(QSvgWidget):
+        def hasHeightForWidth(self) -> bool:
+            return True
+
+        def heightForWidth(self, w: int) -> int:
+            # reads from SVG width/height or viewBox
+            s = self.renderer().defaultSize()
+            if s.width() == 0:
+                return s.height()
+            return round(s.height() * min(w / s.width(), 1))
+
+        def sizeHint(self) -> QSize:
+            return self.renderer().defaultSize()
+
+    EMPTY_GRAPH: graphviz.Graph = graphviz.Graph()
+    MINIMAL_SVG: bytes = EMPTY_GRAPH.pipe(format="svg")
+    _svg_widget: Optional[DimensionedSvgWidget] = None
 
     def escape_gv(text: str) -> str:
         for orig, rep in [("\\", "\\\\")]:
@@ -103,55 +119,37 @@ try:
                 show_warning(
                     f"tried to show non-graph as graph, violated by {name}"
                 )
-                return b""
+                return MINIMAL_SVG
         try:
             return graph.pipe(format="svg", quiet=True)
         except CalledProcessError as e:
             show_warning(f"error in graphviz: {e} from code {graph.source}")
-            return b""
+            return MINIMAL_SVG
+
+    def on_init(editor: Editor):
+        global _svg_widget
+        _svg_widget = DimensionedSvgWidget()
+        outer: QLayout = editor.widget.layout()
+        old_index: int = outer.indexOf(editor.web)
+        outer.removeWidget(editor.web)
+        container = QWidget()
+        box = QVBoxLayout(container)
+        box.addWidget(_svg_widget, stretch=0, alignment=
+            Qt.AlignmentFlag.AlignVCenter |
+            Qt.AlignmentFlag.AlignLeft)
+        box.addWidget(editor.web, stretch=1)
+        outer.insertWidget(old_index, container)
 
     def on_load_note(editor: Editor):
-        global _current_editor
-        _current_editor = editor
-        note_type_name: str = editor.note_type()["name"]
-        tooltip(note_type_name)
+        assert _svg_widget is not None
         if GraphTopology.note_fits(editor.note):
-            w = QSvgWidget()
-            w.load(graphviz_svg(editor.note))
-            natural: QSize = w.renderer().defaultSize()
-            outer: QLayout = editor.widget.layout()
-            for item in map(outer.itemAt, range(outer.count())):
-                if (item and item.widget() and
-                    item.widget().objectName() == CONTAINER_NAME):
-                    old = item.widget()
-                    outer.removeWidget(old)
-                    old.deleteLater()
-                    break
-            old_index: int = outer.indexOf(editor.web)
-            outer.removeWidget(editor.web)
-            container = QWidget()
-            container.setObjectName(CONTAINER_NAME)
-            box = (QHBoxLayout(container)
-               if natural.height() > natural.width()
-               else QVBoxLayout(container))
-            box.addWidget(w, alignment=
-                Qt.AlignmentFlag.AlignVCenter |
-                Qt.AlignmentFlag.AlignLeft)
-            box.addWidget(editor.web)
-            outer.insertWidget(old_index, container)
-
-    def on_focus_field(note: Note, current_field_idx: int):
-        tooltip(f"focusing {current_field_idx}")
-        outer: QLayout = _current_editor.widget.layout()
-        old = None
-        for item in map(outer.itemAt, range(outer.count())):
-            if (item and item.widget() and
-                item.widget().objectName() == CONTAINER_NAME):
-                old = item.widget()
-                break
+            _svg_widget.load(graphviz_svg(editor.note))
         else:
-            tooltip("couldn't find old graphic to update")
-        old.layout().itemAt(0).widget().load(graphviz_svg(
+            _svg_widget.load(MINIMAL_SVG)
+        _svg_widget.updateGeometry()
+ 
+    def on_focus_field(note: Note, current_field_idx: int):
+        _svg_widget.load(graphviz_svg(
             note, note.keys()[current_field_idx]
             if current_field_idx >= 0 else ""
         ))
@@ -163,6 +161,7 @@ try:
             on_focus_field(note, -1)
         return False
 
+    editor_did_init.append(on_init)
     editor_did_load_note.append(on_load_note)
     editor_did_focus_field.append(on_focus_field)
     editor_did_unfocus_field.append(on_unfocus_field)
