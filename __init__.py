@@ -47,6 +47,7 @@ try:
         ("</code>", "</font>"),
     ]
     _svg_widget: Optional[DimensionedSvgWidget] = None
+    errored: bool = False
 
     def escape_gv(text: str) -> str:
         for orig, rep in GV_REPLACES:
@@ -80,7 +81,10 @@ try:
         try:
             return graph.pipe(format="svg", quiet=True)
         except CalledProcessError as e:
-            show_warning(f"error in graphviz: {e} from code {graph.source}")
+            global errored
+            if not errored:
+                errored = True
+                show_warning(f"error in graphviz: {e} from code {graph.source}")
             return MINIMAL_SVG
 
     def on_init(editor: Editor):
@@ -100,6 +104,8 @@ try:
 
     def on_load_note(editor: Editor):
         assert _svg_widget is not None
+        global errored
+        errored = False
         if editor.note is not None and GraphTopology.note_fits(editor.note):
             s = graphviz_svg(editor.note)
             _svg_widget.load(s)
