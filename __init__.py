@@ -92,11 +92,10 @@ try:
         for name, content in note.items():
             if name.startswith("Node"):
                 if content:
-                    graph.node(
-                        name.split()[1],
-                        escape_gv(content),
-                        penwidth="4" if name == focus else "1",
-                    )
+                    attrs = {"penwidth": "4" if name == focus else "1"}
+                    if name != focus and IMG_RE.search(content):
+                        attrs["shape"] = "plain"
+                    graph.node(name.split()[1], escape_gv(content), **attrs)
             elif name.startswith("Edge"):
                 if content:
                     graph.edge(
