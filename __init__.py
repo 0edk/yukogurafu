@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 
 import aqt
@@ -46,13 +47,30 @@ try:
         ("<code>", "<font face=\"monospace\">"),
         ("</code>", "</font>"),
     ]
+    IMG_RE: re.Pattern = re.compile(r"(<img\b[^>]*>)", re.IGNORECASE)
     _svg_widget: Optional[DimensionedSvgWidget] = None
     errored: bool = False
 
     def escape_gv(text: str) -> str:
-        for orig, rep in GV_REPLACES:
-            text = text.replace(orig, rep)
-        return "<" + text + ">"
+        def esc(s: str) -> str:
+            for orig, rep in GV_REPLACES:
+                s = s.replace(orig, rep)
+            return s
+        # odd indices are the img tags
+        parts = IMG_RE.split(text)
+        if len(parts) == 1:
+            return "<" + esc(text) + ">"
+        cells: list[str] = []
+        for i, part in enumerate(parts):
+            if i % 2:
+                # Graphviz requires self-closing
+                if not part.endswith("/>"):
+                    part = part[:-1].rstrip() + "/>"
+                cells.append(part)
+            elif part.strip():
+                cells.append(esc(part))
+        rows = "".join(f"<tr><td>{c}</td></tr>" for c in cells)
+        return f'<<table border="0" cellborder="0">{rows}</table>>'
 
     def graphviz_svg(note: Note, focus: str = "") -> bytes:
         graph = graphviz.Digraph()
