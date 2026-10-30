@@ -1,4 +1,3 @@
-import re
 from typing import Optional
 
 import aqt
@@ -10,6 +9,10 @@ from .topo import GraphTopology
 GraphTopology(aqt.mw)
 
 try:
+    import html
+    import os
+    import re
+    from urllib import parse
     from subprocess import CalledProcessError
     import graphviz
     from aqt.editor import Editor
@@ -48,23 +51,35 @@ try:
         ("</code>", "</font>"),
     ]
     IMG_RE: re.Pattern = re.compile(r"(<img\b[^>]*>)", re.IGNORECASE)
+    SRC_RE: re.Pattern = re.compile(
+        r"""(\bsrc\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>/]+))""", re.IGNORECASE
+    )
     _svg_widget: Optional[DimensionedSvgWidget] = None
     errored: bool = False
+
+    def _abs_src(img: str) -> str:
+        media_dir: str = aqt.mw.col.media.dir()
+        def repl(m: re.Match) -> str:
+            src = next(g for g in m.groups()[1:] if g is not None)
+            if re.match(r"[a-z][a-z0-9+.-]*:", src, re.IGNORECASE):
+                return m.group(0)  # leave URLs and data: URIs alone
+            path = os.path.join(media_dir, parse.unquote(src))
+            return f'{m.group(1)}"{html.escape(path, quote=True)}"'
+        return SRC_RE.sub(repl, img)
 
     def escape_gv(text: str) -> str:
         def esc(s: str) -> str:
             for orig, rep in GV_REPLACES:
                 s = s.replace(orig, rep)
             return s
-        # odd indices are the img tags
-        parts = IMG_RE.split(text)
+        parts = IMG_RE.split(text)  # odd indices are the img tags
         if len(parts) == 1:
             return "<" + esc(text) + ">"
         cells: list[str] = []
         for i, part in enumerate(parts):
             if i % 2:
-                # Graphviz requires self-closing
-                if not part.endswith("/>"):
+                part = _abs_src(part)
+                if not part.endswith("/>"):  # Graphviz requires self-closing
                     part = part[:-1].rstrip() + "/>"
                 cells.append(part)
             elif part.strip():
